@@ -1,0 +1,46 @@
+# IMPORTANT: Sensitive files - DO NOT COMMIT
+.env
+*.env
+.env.local
+.env.production
+
+# Backend
+backend/.env
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.pyc
+backend/.pytest_cache/
+backend/venv/
+backend/env/
+
+# Frontend
+reusable-book/node_modules/
+reusable-book/.docusaurus/
+reusable-book/build/
+reusable-book/.cache/
+reusable-book/yarn-error.log
+reusable-book/npm-debug.log*
+reusable-book/yarn-debug.log*
+reusable-book/.npm
+reusable-book/.yarn-integrity
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# OS
+Thumbs.db
+desktop.ini
