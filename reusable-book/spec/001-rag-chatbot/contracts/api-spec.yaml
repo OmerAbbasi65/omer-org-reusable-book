@@ -1,0 +1,313 @@
+openapi: 3.0.3
+info:
+  title: RAG Chatbot API
+  description: API for the integrated RAG chatbot in the Physical AI & Humanoid Robotics book
+  version: 1.0.0
+  contact:
+    name: API Support
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+  - url: https://api.example.com
+    description: Production server (TBD)
+
+tags:
+  - name: chat
+    description: Chat session and message operations
+  - name: health
+    description: Health check endpoints
+
+paths:
+  /api/health:
+    get:
+      tags:
+        - health
+      summary: Health check
+      description: Check if the API is running and healthy
+      operationId: healthCheck
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  timestamp:
+                    type: string
+                    format: date-time
+                  services:
+                    type: object
+                    properties:
+                      database:
+                        type: string
+                        example: "connected"
+                      qdrant:
+                        type: string
+                        example: "connected"
+
+  /api/chat/sessions:
+    post:
+      tags:
+        - chat
+      summary: Create a new chat session
+      description: Initialize a new chat session. Returns a session ID for subsequent messages.
+      operationId: createChatSession
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                metadata:
+                  type: object
+                  additionalProperties: true
+                  description: Optional metadata for the session
+                  example:
+                    source_page: "/docs/chapter-1/introduction"
+      responses:
+        '201':
+          description: Chat session created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatSession'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/chat/sessions/{session_id}/messages:
+    get:
+      tags:
+        - chat
+      summary: Get messages for a session
+      description: Retrieve all messages in a chat session
+      operationId: getSessionMessages
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The session ID
+      responses:
+        '200':
+          description: Messages retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  session_id:
+                    type: string
+                    format: uuid
+                  messages:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Message'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags:
+        - chat
+      summary: Send a message in a chat session
+      description: Send a user message and receive an assistant response using RAG
+      operationId: sendMessage
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The session ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+      responses:
+        '200':
+          description: Message processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/chat/sessions/{session_id}:
+    delete:
+      tags:
+        - chat
+      summary: Close/delete a chat session
+      description: Mark a session as closed (optional - sessions auto-expire)
+      operationId: closeSession
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The session ID
+      responses:
+        '204':
+          description: Session closed successfully
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    ChatSession:
+      type: object
+      required:
+        - session_id
+        - created_at
+      properties:
+        session_id:
+          type: string
+          format: uuid
+          description: Unique session identifier
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        created_at:
+          type: string
+          format: date-time
+          description: Session creation timestamp
+          example: "2025-12-17T10:30:00Z"
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Session metadata
+          example:
+            source_page: "/docs/chapter-1/introduction"
+
+    Message:
+      type: object
+      required:
+        - id
+        - session_id
+        - role
+        - content
+        - timestamp
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique message identifier
+          example: 12345
+        session_id:
+          type: string
+          format: uuid
+          description: Associated session ID
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        role:
+          type: string
+          enum: [user, assistant, system]
+          description: Message sender role
+          example: "user"
+        content:
+          type: string
+          description: Message content
+          example: "What is inverse kinematics?"
+        timestamp:
+          type: string
+          format: date-time
+          description: Message timestamp
+          example: "2025-12-17T10:31:00Z"
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Additional message metadata
+          example:
+            selected_text: "Inverse kinematics is..."
+            retrieved_chunks: [{"chunk_id": "chunk_123", "score": 0.89}]
+
+    ChatRequest:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: User's question or message
+          minLength: 1
+          maxLength: 2000
+          example: "What is inverse kinematics?"
+        selected_text:
+          type: string
+          description: Optional text selected by the user from the book
+          maxLength: 5000
+          example: "Inverse kinematics (IK) is the mathematical process..."
+
+    ChatResponse:
+      type: object
+      required:
+        - session_id
+        - user_message
+        - assistant_message
+      properties:
+        session_id:
+          type: string
+          format: uuid
+          description: Session ID
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        user_message:
+          $ref: '#/components/schemas/Message'
+        assistant_message:
+          $ref: '#/components/schemas/Message'
+
+    Error:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          type: string
+          description: Error message
+          example: "Session not found"
+        code:
+          type: string
+          description: Error code (optional)
+          example: "SESSION_NOT_FOUND"
