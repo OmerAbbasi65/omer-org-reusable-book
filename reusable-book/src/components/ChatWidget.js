@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import styles from "./ChatWidget.module.css"; // optional styling
 
-const BACKEND_URL = (typeof process !== 'undefined' && process.env?.REACT_APP_BACKEND_URL) || 'http://localhost:8000';
+// Docusaurus doesn't use REACT_APP_ prefix - hardcode for now, override in production
+const BACKEND_URL = 'http://localhost:8000';
 
 export default function ChatWidget() {
   const [open, setOpen] = useState(false);
@@ -203,7 +204,12 @@ export default function ChatWidget() {
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && !loading && sendMessage()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !loading) {
+                    e.preventDefault();
+                    sendMessage();
+                  }
+                }}
                 placeholder="Ask about the book..."
                 disabled={loading}
               />
