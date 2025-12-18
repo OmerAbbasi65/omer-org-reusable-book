@@ -2,18 +2,20 @@ from openai import OpenAI
 from typing import List, Dict, Any, Optional
 from .qdrant_service import qdrant_service
 from .config import settings
-import tiktoken
 
 class RAGService:
     def __init__(self):
-        self.client = OpenAI(api_key=settings.openai_api_key)
-        self.model = "gpt-4"
-        self.max_context_tokens = 8000
-        self.encoding = tiktoken.encoding_for_model("gpt-4")
+        # Use OpenRouter with OpenAI-compatible API
+        self.client = OpenAI(
+            base_url=settings.openrouter_base_url,
+            api_key=settings.openrouter_api_key,
+        )
+        self.model = settings.openrouter_model
+        self.max_context_chars = 24000  # Approximate character limit for context
 
-    def count_tokens(self, text: str) -> int:
-        """Count tokens in text"""
-        return len(self.encoding.encode(text))
+    def count_chars(self, text: str) -> int:
+        """Count characters in text (simple approximation for context limits)"""
+        return len(text)
 
     def generate_response(
         self,
@@ -82,19 +84,19 @@ class RAGService:
         }
 
     def _build_context(self, search_results: List[Dict[str, Any]]) -> str:
-        """Build context from search results, respecting token limits"""
+        """Build context from search results, respecting character limits"""
         context_parts = []
-        total_tokens = 0
+        total_chars = 0
 
         for result in search_results:
             content = f"**{result['title']}**\n{result['content']}\n\n"
-            tokens = self.count_tokens(content)
+            chars = self.count_chars(content)
 
-            if total_tokens + tokens > self.max_context_tokens:
+            if total_chars + chars > self.max_context_chars:
                 break
 
             context_parts.append(content)
-            total_tokens += tokens
+            total_chars += chars
 
         return "\n".join(context_parts)
 
@@ -169,9 +171,9 @@ Question: {query}
         # Combine chapter content
         chapter_content = "\n\n".join([r["content"] for r in results])
 
-        # Limit content length
-        if self.count_tokens(chapter_content) > 6000:
-            chapter_content = chapter_content[:20000]  # Rough character limit
+        # Limit content length (approximate 20000 chars)
+        if self.count_chars(chapter_content) > 20000:
+            chapter_content = chapter_content[:20000]
 
         # Generate summary
         response = self.client.chat.completions.create(

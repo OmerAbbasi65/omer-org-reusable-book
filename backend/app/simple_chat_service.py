@@ -1,11 +1,15 @@
-import anthropic
+from openai import OpenAI
 from typing import List, Dict, Any, Optional
 from .config import settings
 
 class SimpleChatService:
     def __init__(self):
-        self.client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-        self.model = "claude-3-5-sonnet-20241022"
+        # Use OpenRouter with OpenAI-compatible API
+        self.client = OpenAI(
+            base_url=settings.openrouter_base_url,
+            api_key=settings.openrouter_api_key,
+        )
+        self.model = settings.openrouter_model
         self.max_tokens = 1024
 
     def generate_response(
@@ -15,7 +19,7 @@ class SimpleChatService:
         conversation_history: List[Dict[str, str]] = None
     ) -> Dict[str, Any]:
         """
-        Generate a response using Claude (simple chat, no RAG).
+        Generate a response using OpenRouter (simple chat, no RAG).
 
         Args:
             query: User's question
@@ -25,18 +29,17 @@ class SimpleChatService:
         Returns:
             Dictionary with response
         """
-        # Build messages for Claude
+        # Build messages for chat
         messages = self._build_messages(query, selected_text, conversation_history)
 
-        # Generate response using Claude
-        response = self.client.messages.create(
+        # Generate response using OpenRouter
+        response = self.client.chat.completions.create(
             model=self.model,
             max_tokens=self.max_tokens,
-            system=self._get_system_prompt(),
-            messages=messages
+            messages=[{"role": "system", "content": self._get_system_prompt()}] + messages
         )
 
-        answer = response.content[0].text
+        answer = response.choices[0].message.content
 
         return {
             "response": answer,

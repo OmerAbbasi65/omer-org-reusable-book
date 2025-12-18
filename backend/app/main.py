@@ -12,13 +12,14 @@ from .schemas import (
     ChatResponse
 )
 from .simple_chat_service import simple_chat_service
+from .rag_service import rag_service
 from . import models
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="Physical AI & Humanoid Robotics Simple Chatbot API",
-    description="Simple chatbot powered by Claude (Anthropic)",
-    version="1.0.0"
+    title="Physical AI & Humanoid Robotics RAG Chatbot API",
+    description="RAG chatbot powered by OpenRouter + HuggingFace embeddings",
+    version="2.0.0"
 )
 
 # CORS middleware
@@ -49,7 +50,7 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "mode": "simple_chat"}
+    return {"status": "healthy", "mode": "rag_chat"}
 
 # ============================================================================
 # CHAT ENDPOINTS
@@ -133,6 +134,85 @@ async def chat(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error processing chat request: {str(e)}"
+        )
+
+@app.post("/api/chat/rag", response_model=ChatResponse)
+async def chat_with_rag(
+    request: ChatMessageRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    RAG-powered chat endpoint.
+    Searches book content and provides contextual answers.
+    """
+    try:
+        # Get or create session
+        if request.session_id:
+            session = db.query(models.ChatSession).filter(
+                models.ChatSession.session_id == request.session_id
+            ).first()
+            if not session:
+                session = models.ChatSession(session_id=request.session_id)
+                db.add(session)
+                db.commit()
+        else:
+            session_id = str(uuid.uuid4())
+            session = models.ChatSession(session_id=session_id)
+            db.add(session)
+            db.commit()
+
+        # Get conversation history
+        history_messages = db.query(models.ChatMessage).filter(
+            models.ChatMessage.session_id == session.id
+        ).order_by(models.ChatMessage.created_at).limit(10).all()
+
+        conversation_history = [
+            {"role": msg.role, "content": msg.content}
+            for msg in history_messages
+        ]
+
+        # Generate response using RAG
+        chat_response = rag_service.generate_response(
+            query=request.message,
+            selected_text=request.selected_text,
+            chapter_id=request.chapter_id,
+            conversation_history=conversation_history
+        )
+
+        # Save user message
+        user_message = models.ChatMessage(
+            session_id=session.id,
+            role="user",
+            content=request.message,
+            context=request.selected_text
+        )
+        db.add(user_message)
+
+        # Save assistant response
+        assistant_message = models.ChatMessage(
+            session_id=session.id,
+            role="assistant",
+            content=chat_response["response"],
+            extra_metadata={
+                "sources": chat_response["sources"],
+                "confidence": chat_response["confidence"]
+            }
+        )
+        db.add(assistant_message)
+        db.commit()
+
+        return ChatResponse(
+            response=chat_response["response"],
+            session_id=session.session_id,
+            sources=chat_response["sources"],
+            confidence=chat_response["confidence"]
+        )
+
+    except Exception as e:
+        print(f"Error in RAG chat endpoint: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error processing RAG chat request: {str(e)}"
         )
 
 @app.get("/api/chat/history/{session_id}")

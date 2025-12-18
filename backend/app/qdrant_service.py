@@ -1,7 +1,7 @@
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct, Filter, FieldCondition, MatchValue
 from qdrant_client.http import models
-from openai import OpenAI
+from sentence_transformers import SentenceTransformer
 from typing import List, Dict, Any, Optional
 import uuid
 from .config import settings
@@ -13,9 +13,10 @@ class QdrantService:
             api_key=settings.qdrant_api_key,
         )
         self.collection_name = settings.qdrant_collection_name
-        self.openai_client = OpenAI(api_key=settings.openai_api_key)
-        self.embedding_model = "text-embedding-3-small"
-        self.embedding_dimension = 1536
+        # Use HuggingFace sentence-transformers (free, runs locally)
+        self.embedding_model = SentenceTransformer(settings.embedding_model)
+        # all-MiniLM-L6-v2 produces 384-dimensional embeddings
+        self.embedding_dimension = 384
 
         # Initialize collection if it doesn't exist
         self._init_collection()
@@ -36,12 +37,9 @@ class QdrantService:
             )
 
     def create_embedding(self, text: str) -> List[float]:
-        """Create embedding vector for text using OpenAI"""
-        response = self.openai_client.embeddings.create(
-            model=self.embedding_model,
-            input=text
-        )
-        return response.data[0].embedding
+        """Create embedding vector for text using HuggingFace sentence-transformers"""
+        embedding = self.embedding_model.encode(text)
+        return embedding.tolist()
 
     def add_document(self, doc_id: str, title: str, content: str, metadata: Dict[str, Any]) -> str:
         """Add a document to Qdrant"""

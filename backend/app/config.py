@@ -3,11 +3,21 @@ from typing import List
 import os
 
 class Settings(BaseSettings):
-    # Anthropic
-    anthropic_api_key: str
+    # OpenRouter (for LLM chat)
+    openrouter_api_key: str
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    openrouter_model: str = "anthropic/claude-3.5-sonnet"
 
     # Database
     database_url: str
+
+    # Qdrant Cloud
+    qdrant_url: str
+    qdrant_api_key: str
+    qdrant_collection_name: str = "rag-chatbot"
+
+    # HuggingFace Embeddings (free, runs locally)
+    embedding_model: str = "all-MiniLM-L6-v2"
 
     # Application
     environment: str = "development"
