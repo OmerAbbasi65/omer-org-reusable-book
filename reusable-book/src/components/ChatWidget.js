@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import styles from "./ChatWidget.module.css"; // optional styling
 
-// Docusaurus doesn't use REACT_APP_ prefix - hardcode for now, override in production
-const BACKEND_URL = 'http://localhost:8000';
+// Backend URL - uses HF Space in production, localhost for development
+const BACKEND_URL = process.env.NODE_ENV === 'production'
+  ? 'https://joseph8071-robotics-rag-backend.hf.space'
+  : 'http://localhost:8000';
 
 export default function ChatWidget() {
   const [open, setOpen] = useState(false);
