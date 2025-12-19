@@ -194,5 +194,16 @@ Question: {query}
 
         return response.choices[0].message.content
 
-# Singleton instance
-rag_service = RAGService()
+# Lazy singleton instance
+_rag_service_instance = None
+
+def get_rag_service():
+    global _rag_service_instance
+    if _rag_service_instance is None:
+        _rag_service_instance = RAGService()
+    return _rag_service_instance
+
+# For backward compatibility
+rag_service = type('LazyService', (), {
+    '__getattr__': lambda self, name: getattr(get_rag_service(), name)
+})()

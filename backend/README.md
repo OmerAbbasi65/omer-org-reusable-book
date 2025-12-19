@@ -1,6 +1,20 @@
+---
+title: Physical AI & Humanoid Robotics RAG Backend
+emoji: 🤖
+colorFrom: blue
+colorTo: purple
+sdk: docker
+pinned: false
+app_port: 7860
+---
+
 # Physical AI & Humanoid Robotics - RAG Backend
 
 This is the FastAPI backend for the RAG (Retrieval-Augmented Generation) chatbot integrated into the Physical AI & Humanoid Robotics textbook.
+
+## Hugging Face Spaces Deployment
+
+This application is configured to run on Hugging Face Spaces using Docker. The API will be available at port 7860.
 
 ## Features
 
@@ -13,7 +27,8 @@ This is the FastAPI backend for the RAG (Retrieval-Augmented Generation) chatbot
 ## Tech Stack
 
 - **FastAPI**: Modern Python web framework
-- **OpenAI API**: GPT-4 for responses, text-embedding-3-small for embeddings
+- **OpenRouter**: Access to multiple LLMs (Claude, GPT-4, Gemini, etc.)
+- **HuggingFace Embeddings**: Free local embeddings (all-MiniLM-L6-v2)
 - **Qdrant Cloud**: Vector database for semantic search
 - **Neon Serverless Postgres**: Relational database for chat history
 - **SQLAlchemy**: ORM for database operations
@@ -22,10 +37,10 @@ This is the FastAPI backend for the RAG (Retrieval-Augmented Generation) chatbot
 
 ### 1. Prerequisites
 
-- Python 3.10+
-- OpenAI API key
-- Qdrant Cloud account (free tier)
-- Neon Serverless Postgres database
+- Python 3.11+
+- OpenRouter API key (supports multiple LLM providers)
+- Qdrant Cloud account (free tier available)
+- Neon Serverless Postgres database (free tier available)
 
 ### 2. Install Dependencies
 
@@ -45,19 +60,31 @@ cp .env.example .env
 Edit `.env`:
 
 ```env
-# OpenAI
-OPENAI_API_KEY=sk-...
+# OpenRouter Configuration
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+OPENROUTER_MODEL=anthropic/claude-3.5-sonnet
 
 # Qdrant Cloud
-QDRANT_URL=https://xxxxx.qdrant.io
+QDRANT_URL=https://xxxxx.cloud.qdrant.io
 QDRANT_API_KEY=your_qdrant_api_key
-QDRANT_COLLECTION_NAME=physical_ai_robotics
+QDRANT_COLLECTION_NAME=rag-chatbot
 
 # Neon Postgres
 DATABASE_URL=postgresql://user:password@ep-xxxxx.us-east-2.aws.neon.tech/database?sslmode=require
 
+# HuggingFace Embeddings (free, runs locally)
+EMBEDDING_MODEL=all-MiniLM-L6-v2
+
+# Application Settings
+ENVIRONMENT=production
+DEBUG=False
+CORS_ORIGINS=https://your-frontend-url.com,https://another-allowed-origin.com
+
 # Security
 SECRET_KEY=generate_with_openssl_rand_hex_32
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
 ```
 
 ### 4. Run the Server
@@ -79,9 +106,88 @@ python ingest_documents.py
 This will:
 1. Read all markdown files from `../reusable-book/docs/`
 2. Chunk them appropriately
-3. Create embeddings using OpenAI
+3. Create embeddings using HuggingFace
 4. Store vectors in Qdrant
 5. Save metadata in Postgres
+
+## Deploying to Hugging Face Spaces
+
+### Step 1: Create a New Space
+
+1. Go to [Hugging Face Spaces](https://huggingface.co/spaces)
+2. Click "Create new Space"
+3. Choose a name for your space
+4. Select **Docker** as the SDK
+5. Choose **Public** or **Private** visibility
+6. Click "Create Space"
+
+### Step 2: Push Your Code
+
+From the backend directory, initialize git and push to your space:
+
+```bash
+cd backend
+git init
+git remote add space https://huggingface.co/spaces/YOUR-USERNAME/YOUR-SPACE-NAME
+git add .
+git commit -m "Initial commit"
+git push space main
+```
+
+### Step 3: Configure Environment Variables
+
+In your Hugging Face Space settings, add the following secrets:
+
+1. Go to your Space's Settings > Repository secrets
+2. Add each environment variable:
+
+**Required Variables:**
+- `OPENROUTER_API_KEY` - Your OpenRouter API key from [openrouter.ai](https://openrouter.ai)
+- `DATABASE_URL` - Your Neon Postgres connection string
+- `QDRANT_URL` - Your Qdrant Cloud URL
+- `QDRANT_API_KEY` - Your Qdrant API key
+- `SECRET_KEY` - Generate with: `openssl rand -hex 32`
+
+**Optional Variables:**
+- `OPENROUTER_MODEL` - Default: `anthropic/claude-3.5-sonnet`
+- `QDRANT_COLLECTION_NAME` - Default: `rag-chatbot`
+- `EMBEDDING_MODEL` - Default: `all-MiniLM-L6-v2`
+- `CORS_ORIGINS` - Comma-separated list of allowed origins
+- `ENVIRONMENT` - Default: `production`
+- `DEBUG` - Default: `False`
+
+### Step 4: Wait for Build
+
+Hugging Face Spaces will automatically build your Docker container. This may take 5-10 minutes. You can monitor the build logs in the "Logs" tab.
+
+### Step 5: Test Your API
+
+Once deployed, your API will be available at:
+```
+https://YOUR-USERNAME-YOUR-SPACE-NAME.hf.space
+```
+
+Test the health endpoint:
+```bash
+curl https://YOUR-USERNAME-YOUR-SPACE-NAME.hf.space/health
+```
+
+Test the chat endpoint:
+```bash
+curl -X POST https://YOUR-USERNAME-YOUR-SPACE-NAME.hf.space/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "What is ROS 2?",
+    "session_id": "test-session"
+  }'
+```
+
+### Step 6: Ingest Documents (Optional)
+
+If you need to ingest documents into Qdrant, you can either:
+
+1. **Run locally then deploy**: Ingest documents on your local machine with the same Qdrant credentials, then deploy
+2. **Use the API endpoint**: Use the `/api/documents/ingest` endpoint to upload documents via API
 
 ## API Endpoints
 

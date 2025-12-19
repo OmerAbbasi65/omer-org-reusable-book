@@ -170,5 +170,16 @@ class QdrantService:
             )
         )
 
-# Singleton instance
-qdrant_service = QdrantService()
+# Lazy singleton instance
+_qdrant_service_instance = None
+
+def get_qdrant_service():
+    global _qdrant_service_instance
+    if _qdrant_service_instance is None:
+        _qdrant_service_instance = QdrantService()
+    return _qdrant_service_instance
+
+# For backward compatibility
+qdrant_service = type('LazyService', (), {
+    '__getattr__': lambda self, name: getattr(get_qdrant_service(), name)
+})()

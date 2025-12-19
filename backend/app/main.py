@@ -9,10 +9,12 @@ from .config import settings
 from .database import get_db, init_db
 from .schemas import (
     ChatMessageRequest,
-    ChatResponse
+    ChatResponse,
+    DocumentIngest
 )
 from .simple_chat_service import simple_chat_service
 from .rag_service import rag_service
+from .qdrant_service import qdrant_service
 from . import models
 
 # Initialize FastAPI app
@@ -270,6 +272,70 @@ async def clear_chat_history(
         "status": "success",
         "message": f"Cleared chat history for session {session_id}"
     }
+
+# ============================================================================
+# DOCUMENT INGESTION ENDPOINTS
+# ============================================================================
+
+@app.post("/api/documents/ingest")
+async def ingest_documents(
+    request: DocumentIngest,
+    db: Session = Depends(get_db)
+):
+    """
+    Ingest documents into the vector database.
+    Accepts a batch of document chunks with metadata.
+    """
+    try:
+        # Prepare documents for Qdrant
+        documents_for_qdrant = []
+        for doc_chunk in request.documents:
+            documents_for_qdrant.append({
+                "title": doc_chunk.title,
+                "content": doc_chunk.content,
+                "metadata": {
+                    "chapter_id": doc_chunk.chapter_id,
+                    **(doc_chunk.metadata or {})
+                }
+            })
+
+        # Add to Qdrant in batch
+        vector_ids = qdrant_service.add_documents_batch(documents_for_qdrant)
+
+        # Store metadata in PostgreSQL
+        ingested_docs = []
+        for doc_chunk in request.documents:
+            # Check if document already exists
+            existing_doc = db.query(models.Document).filter(
+                models.Document.chapter_id == doc_chunk.chapter_id,
+                models.Document.title == doc_chunk.title
+            ).first()
+
+            if not existing_doc:
+                db_doc = models.Document(
+                    title=doc_chunk.title,
+                    chapter_id=doc_chunk.chapter_id,
+                    content=doc_chunk.content[:500],  # Store preview
+                    url=doc_chunk.metadata.get("file_path") if doc_chunk.metadata else None
+                )
+                db.add(db_doc)
+                ingested_docs.append(doc_chunk.chapter_id)
+
+        db.commit()
+
+        return {
+            "status": "success",
+            "message": f"Successfully ingested {len(request.documents)} document chunks",
+            "vector_ids": vector_ids,
+            "documents": list(set(ingested_docs))
+        }
+
+    except Exception as e:
+        print(f"Error ingesting documents: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error ingesting documents: {str(e)}"
+        )
 
 if __name__ == "__main__":
     import uvicorn

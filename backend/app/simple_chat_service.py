@@ -101,5 +101,16 @@ Question: {query}"""
 
         return messages
 
-# Singleton instance
-simple_chat_service = SimpleChatService()
+# Lazy singleton instance
+_simple_chat_service_instance = None
+
+def get_simple_chat_service():
+    global _simple_chat_service_instance
+    if _simple_chat_service_instance is None:
+        _simple_chat_service_instance = SimpleChatService()
+    return _simple_chat_service_instance
+
+# For backward compatibility
+simple_chat_service = type('LazyService', (), {
+    '__getattr__': lambda self, name: getattr(get_simple_chat_service(), name)
+})()
