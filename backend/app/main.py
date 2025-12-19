@@ -316,6 +316,7 @@ async def ingest_documents(
                     title=doc_chunk.title,
                     chapter_id=doc_chunk.chapter_id,
                     content=doc_chunk.content[:500],  # Store preview
+                    doc_type="chapter",  # Default to 'chapter' type
                     url=doc_chunk.metadata.get("file_path") if doc_chunk.metadata else None
                 )
                 db.add(db_doc)
