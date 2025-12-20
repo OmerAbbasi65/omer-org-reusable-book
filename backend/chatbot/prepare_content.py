@@ -1,12 +1,28 @@
 import os
 import re
 import json
+from sentence_transformers import SentenceTransformer
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Initialize the embedding model
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+embedding_model = SentenceTransformer(EMBEDDING_MODEL)
+
+def get_embedding(text):
+    """
+    Generates an embedding vector for the given text using HuggingFace SentenceTransformer.
+    Returns a list of floats representing the embedding.
+    """
+    embedding = embedding_model.encode(text)
+    return embedding.tolist()
 
 def get_files_in_directory(directory, extensions=None):
     """Recursively gets all files in a directory with specified extensions."""
     if extensions is None:
         extensions = []
-    
+
     file_list = []
     for root, _, files in os.walk(directory):
         for file in files:

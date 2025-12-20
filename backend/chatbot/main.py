@@ -1,13 +1,14 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 from . import models
 from .database import SessionLocal, engine
 import os
 from dotenv import load_dotenv
 from .prepare_content import get_embedding # For generating query embeddings
 from .qdrant_utils import get_qdrant_client # For Qdrant client
-from typing import List, Dict
+from typing import List, Dict, Optional
 import openai # Added import for OpenAI API calls
 
 load_dotenv()
@@ -34,13 +35,25 @@ def get_db():
     finally:
         db.close()
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") # Get OpenAI API Key
+# Request models
+class ChatRequest(BaseModel):
+    message: str
+    session_id: str
+    selected_text: Optional[str] = None
+
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL")
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "google/gemini-2.0-flash-exp:free")
 QDRANT_COLLECTION_NAME = os.getenv("QDRANT_COLLECTION_NAME")
 
-if not OPENAI_API_KEY:
-    raise ValueError("OPENAI_API_KEY environment variable not set.")
+if not OPENROUTER_API_KEY:
+    raise ValueError("OPENROUTER_API_KEY environment variable not set.")
 
-openai_client = openai.OpenAI(api_key=OPENAI_API_KEY) # Initialize OpenAI client
+# Initialize OpenAI-compatible client with OpenRouter
+openai_client = openai.OpenAI(
+    api_key=OPENROUTER_API_KEY,
+    base_url=OPENROUTER_BASE_URL
+)
 
 async def generate_rag_response(user_message: str, db: Session) -> str:
     """
@@ -79,7 +92,7 @@ async def generate_rag_response(user_message: str, db: Session) -> str:
     # 3. Get response from LLM
     try:
         response = openai_client.chat.completions.create(
-            model="gpt-3.5-turbo", # Or another suitable chat model
+            model=OPENROUTER_MODEL,
             messages=messages,
             max_tokens=500,
             temperature=0.7,
@@ -132,17 +145,25 @@ async def retrieve_chunks(query: str, limit: int = 3) -> List[Dict]:
         })
     return chunks
 
-@app.post("/chat")
-async def chat(user_id: str, message: str, db: Session = Depends(get_db)):
+@app.post("/api/chat")
+async def chat(request: ChatRequest, db: Session = Depends(get_db)):
     """
     Main chat endpoint that uses RAG to answer user questions based on book content.
     """
-    llm_response = await generate_rag_response(message, db)
-    
+    llm_response = await generate_rag_response(request.message, db)
+
     # Store conversation in DB
-    conversation = models.Conversation(user_id=user_id, message=message, response=llm_response)
+    conversation = models.Conversation(
+        user_id=request.session_id,
+        message=request.message,
+        response=llm_response
+    )
     db.add(conversation)
     db.commit()
     db.refresh(conversation)
 
-    return {"response": llm_response, "user_id": user_id, "message": message}
+    return {
+        "response": llm_response,
+        "session_id": request.session_id,
+        "message": request.message
+    }

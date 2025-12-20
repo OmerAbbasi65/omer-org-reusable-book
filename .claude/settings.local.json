@@ -10,7 +10,10 @@
       "Bash(timeout 15 python:*)",
       "Bash(curl:*)",
       "Bash(start:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(.venvScriptspip.exe install -r requirements.txt)",
+      "Bash(taskkill:*)",
+      "Bash(cmd /c \"taskkill /F /IM python.exe\")"
     ]
   }
 }
