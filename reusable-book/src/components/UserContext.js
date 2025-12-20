@@ -90,4 +90,23 @@ export const UserProvider = ({ children }) => {
   );
 };
 
-export const useUser = () => useContext(UserContext);
+export const useUser = () => {
+  const context = useContext(UserContext);
+
+  // Return default values during SSR/SSG when context is null
+  if (context === null) {
+    return {
+      isLoggedIn: false,
+      userData: null,
+      login: () => false,
+      signup: () => false,
+      logout: () => {},
+      personalizationEnabled: false,
+      togglePersonalization: () => {},
+      translationEnabled: false,
+      toggleTranslation: () => {},
+    };
+  }
+
+  return context;
+};

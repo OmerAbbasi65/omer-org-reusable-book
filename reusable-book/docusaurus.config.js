@@ -18,6 +18,11 @@ const config = {
   tagline: 'An AI-driven book on robotics and artificial intelligence',
   favicon: 'img/favicon.ico',
 
+  // Custom fields for environment variables accessible in client-side code
+  customFields: {
+    backendUrl: process.env.BACKEND_URL || 'https://joseph8071-robotics-rag-backend.hf.space',
+  },
+
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
   future: {
     v4: true, // Improve compatibility with the upcoming Docusaurus v4
@@ -97,16 +102,6 @@ const config = {
             sidebarId: 'tutorialSidebar',
             position: 'left',
             label: 'Chapters',
-          },
-          {
-            to: '/login', // Link to the new login page
-            label: 'Login',
-            position: 'right',
-          },
-          {
-            to: '/chat', // Link to the new chat page
-            label: 'Chat',
-            position: 'right',
           },
         ],
       },

@@ -1,11 +1,5 @@
 import { useState, useCallback } from 'react';
-
-// API URL - uses environment variable or defaults to Hugging Face Space
-const API_URL = process.env.BACKEND_URL
-  ? `${process.env.BACKEND_URL}/api`
-  : process.env.NODE_ENV === 'production'
-    ? 'https://joseph8071-robotics-rag-backend.hf.space/api'
-    : 'http://localhost:8000/api';
+import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -14,6 +8,10 @@ interface Message {
 }
 
 export default function useChatBot() {
+  const { siteConfig } = useDocusaurusContext();
+  const backendUrl = (siteConfig.customFields?.backendUrl as string) || 'https://joseph8071-robotics-rag-backend.hf.space';
+  const API_URL = `${backendUrl}/api`;
+
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
