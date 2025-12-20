@@ -1,9 +1,11 @@
 import { useState, useCallback } from 'react';
 
-// API URL - uses HF Space in production, localhost for development
-const API_URL = process.env.NODE_ENV === 'production'
-  ? 'https://joseph8071-robotics-rag-backend.hf.space/api'
-  : 'http://localhost:8000/api';
+// API URL - uses environment variable or defaults to Hugging Face Space
+const API_URL = process.env.BACKEND_URL
+  ? `${process.env.BACKEND_URL}/api`
+  : process.env.NODE_ENV === 'production'
+    ? 'https://joseph8071-robotics-rag-backend.hf.space/api'
+    : 'http://localhost:8000/api';
 
 interface Message {
   role: 'user' | 'assistant';
