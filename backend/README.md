@@ -19,10 +19,12 @@ This application is configured to run on Hugging Face Spaces using Docker. The A
 ## Features
 
 - **RAG Chatbot**: Answers questions about the textbook using OpenAI GPT-4
+- **Multi-Model Support**: Switch between Claude 3.5 Sonnet and Cohere Command R+ models
 - **Vector Search**: Semantic search using Qdrant Cloud
 - **Text Selection Q&A**: Answer questions based on user-selected text
 - **Chat History**: Persistent conversation storage
 - **Document Management**: Automated ingestion of markdown content
+- **Model Toggle**: Easy configuration to switch between AI models
 
 ## Tech Stack
 
@@ -64,6 +66,14 @@ Edit `.env`:
 OPENROUTER_API_KEY=your_openrouter_api_key_here
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 OPENROUTER_MODEL=anthropic/claude-3.5-sonnet
+
+# Model Selection - Switch between Claude and Cohere
+# Options: "claude" or "cohere"
+ACTIVE_MODEL=claude
+
+# Available Models Configuration
+CLAUDE_MODEL=anthropic/claude-3.5-sonnet
+COHERE_MODEL=cohere/command-r-plus
 
 # Qdrant Cloud
 QDRANT_URL=https://xxxxx.cloud.qdrant.io
@@ -109,6 +119,79 @@ This will:
 3. Create embeddings using HuggingFace
 4. Store vectors in Qdrant
 5. Save metadata in Postgres
+
+## 🔄 Switching Between AI Models
+
+The backend supports both **Claude 3.5 Sonnet** and **Cohere Command R+** models. You can easily switch between them:
+
+### Option 1: Using Claude 3.5 Sonnet (Default)
+
+Claude 3.5 Sonnet from Anthropic is excellent for complex reasoning and detailed explanations.
+
+**In your `.env` file:**
+```env
+ACTIVE_MODEL=claude
+CLAUDE_MODEL=anthropic/claude-3.5-sonnet
+```
+
+### Option 2: Using Cohere Command R+
+
+Cohere's Command R+ model is specifically optimized for RAG (Retrieval-Augmented Generation) tasks and offers excellent performance for educational content.
+
+**In your `.env` file:**
+```env
+ACTIVE_MODEL=cohere
+COHERE_MODEL=cohere/command-r-plus
+```
+
+### Available Cohere Models via OpenRouter
+
+- `cohere/command-r-plus` - Best for RAG, instruction following, and complex queries
+- `cohere/command-r` - Faster and more cost-effective
+- `cohere/command` - Basic model for simple queries
+
+### Check Active Model
+
+You can check which model is currently active via the API:
+
+```bash
+curl http://localhost:8000/api/model-info
+```
+
+**Response:**
+```json
+{
+  "active_model": "claude",
+  "model_name": "anthropic/claude-3.5-sonnet",
+  "available_models": {
+    "claude": "anthropic/claude-3.5-sonnet",
+    "cohere": "cohere/command-r-plus"
+  },
+  "description": "Currently using CLAUDE model for chat responses"
+}
+```
+
+### Model Comparison
+
+| Feature | Claude 3.5 Sonnet | Cohere Command R+ |
+|---------|------------------|-------------------|
+| **Best For** | Complex reasoning, detailed explanations | RAG tasks, instruction following |
+| **Context Window** | 200K tokens | 128K tokens |
+| **Speed** | Fast | Very fast |
+| **Cost** | Moderate | Lower |
+| **RAG Optimization** | Excellent | Specifically optimized |
+
+### Switching Models Without Restart
+
+Simply update your `.env` file and restart the server:
+
+```bash
+# Edit .env and change ACTIVE_MODEL
+# Then restart the server
+uvicorn app.main:app --reload
+```
+
+The system will automatically use the selected model for all chat and RAG operations.
 
 ## Deploying to Hugging Face Spaces
 

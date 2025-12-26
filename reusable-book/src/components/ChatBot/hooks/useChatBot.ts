@@ -17,20 +17,11 @@ export default function useChatBot() {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedText, setSelectedText] = useState<string | null>(null);
 
-  const createSession = useCallback(async () => {
-    try {
-      const response = await fetch(`${API_URL}/chat/sessions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ metadata: {} }),
-      });
-      const data = await response.json();
-      setSessionId(data.session_id);
-      return data.session_id;
-    } catch (error) {
-      console.error('Failed to create session:', error);
-      return null;
-    }
+  const createSession = useCallback(() => {
+    // Generate session ID on client side
+    const newSessionId = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    setSessionId(newSessionId);
+    return newSessionId;
   }, []);
 
   const sendMessage = useCallback(async (message: string) => {
@@ -38,8 +29,7 @@ export default function useChatBot() {
 
     let currentSessionId = sessionId;
     if (!currentSessionId) {
-      currentSessionId = await createSession();
-      if (!currentSessionId) return;
+      currentSessionId = createSession();
     }
 
     const userMessage: Message = {
@@ -51,17 +41,15 @@ export default function useChatBot() {
     setIsLoading(true);
 
     try {
-      const response = await fetch(
-        `${API_URL}/chat/sessions/${currentSessionId}/messages`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message,
-            selected_text: selectedText,
-          }),
-        }
-      );
+      const response = await fetch(`${API_URL}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message,
+          session_id: currentSessionId,
+          selected_text: selectedText,
+        }),
+      });
 
       if (!response.ok) {
         throw new Error('Failed to send message');
@@ -71,8 +59,8 @@ export default function useChatBot() {
 
       const assistantMessage: Message = {
         role: 'assistant',
-        content: data.assistant_message.content,
-        timestamp: new Date(data.assistant_message.timestamp),
+        content: data.response,
+        timestamp: new Date(),
       };
 
       setMessages(prev => [...prev, assistantMessage]);
@@ -88,7 +76,7 @@ export default function useChatBot() {
     } finally {
       setIsLoading(false);
     }
-  }, [sessionId, selectedText, createSession]);
+  }, [sessionId, selectedText, createSession, API_URL]);
 
   const resetSession = useCallback(() => {
     setSessionId(null);

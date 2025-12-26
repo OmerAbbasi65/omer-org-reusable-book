@@ -54,6 +54,19 @@ async def root():
 async def health_check():
     return {"status": "healthy", "mode": "rag_chat"}
 
+@app.get("/api/model-info")
+async def get_model_info():
+    """Get information about the currently active AI model"""
+    return {
+        "active_model": settings.active_model,
+        "model_name": settings.current_model,
+        "available_models": {
+            "claude": settings.claude_model,
+            "cohere": settings.cohere_model
+        },
+        "description": f"Currently using {settings.active_model.upper()} model for chat responses"
+    }
+
 # ============================================================================
 # CHAT ENDPOINTS
 # ============================================================================

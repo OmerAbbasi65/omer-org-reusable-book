@@ -9,8 +9,10 @@ class SimpleChatService:
             base_url=settings.openrouter_base_url,
             api_key=settings.openrouter_api_key,
         )
-        self.model = settings.openrouter_model
+        # Use current_model which switches between Claude and Cohere
+        self.model = settings.current_model
         self.max_tokens = 1024
+        self.active_model_type = settings.active_model
 
     def generate_response(
         self,
@@ -48,8 +50,8 @@ class SimpleChatService:
         }
 
     def _get_system_prompt(self) -> str:
-        """Get system prompt for Claude"""
-        return """You are an expert AI tutor for Physical AI and Humanoid Robotics.
+        """Get system prompt optimized for the active model"""
+        base_prompt = """You are an expert AI tutor for Physical AI and Humanoid Robotics.
 Your role is to help students understand concepts about robotics, ROS 2, simulation, and AI.
 
 Guidelines:
@@ -68,6 +70,14 @@ Topics you can help with:
 - Humanoid robotics
 - Physical AI concepts
 """
+
+        # Add model-specific optimizations
+        if self.active_model_type.lower() == "cohere":
+            base_prompt += "\nYou are powered by Cohere's Command R+ model, optimized for retrieval-augmented generation and educational content."
+        else:
+            base_prompt += "\nYou are powered by Claude 3.5 Sonnet, Anthropic's advanced AI assistant."
+
+        return base_prompt
 
     def _build_messages(
         self,

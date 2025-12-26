@@ -8,6 +8,13 @@ class Settings(BaseSettings):
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     openrouter_model: str = "anthropic/claude-3.5-sonnet"
 
+    # Model Selection (claude or cohere)
+    active_model: str = "claude"  # Options: "claude" or "cohere"
+
+    # Available Models Configuration
+    claude_model: str = "anthropic/claude-3.5-sonnet"
+    cohere_model: str = "cohere/command-r-plus"  # Excellent for RAG tasks
+
     # Database
     database_url: str
 
@@ -28,6 +35,14 @@ class Settings(BaseSettings):
     secret_key: str
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
+
+    @property
+    def current_model(self) -> str:
+        """Get the currently active model based on active_model setting"""
+        if self.active_model.lower() == "cohere":
+            return self.cohere_model
+        else:
+            return self.claude_model
 
     class Config:
         env_file = ".env"

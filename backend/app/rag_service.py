@@ -10,7 +10,9 @@ class RAGService:
             base_url=settings.openrouter_base_url,
             api_key=settings.openrouter_api_key,
         )
-        self.model = settings.openrouter_model
+        # Use current_model which switches between Claude and Cohere
+        self.model = settings.current_model
+        self.active_model_type = settings.active_model
         self.max_context_chars = 24000  # Approximate character limit for context
 
     def count_chars(self, text: str) -> int:
